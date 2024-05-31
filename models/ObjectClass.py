@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     last_name: str
     birth_date: date
     sex: str
+    
 
 
 class CompetitionBase(BaseModel):

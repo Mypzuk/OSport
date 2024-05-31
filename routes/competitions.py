@@ -8,7 +8,7 @@ from engine import get_db
 router = APIRouter()
 
 # Добавление соревнования
-@router.post('/addCompetition')
+@router.post('/competition/add')
 async def add_competition(competition: CompetitionBase, db: AsyncSession = Depends(get_db)):
     try:
         db_competition = Competitions(**competition.dict())
@@ -20,7 +20,7 @@ async def add_competition(competition: CompetitionBase, db: AsyncSession = Depen
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при добавлении: {str(e)}")
 
 # Удаление определённого соревнования
-@router.delete('/deleteCompetition')
+@router.delete('/competition/{competition_id}')
 async def delete_competition(competition_id: int, db: AsyncSession = Depends(get_db)):
     try:
         competition = await db.execute(select(Competitions).where(Competitions.competition_id == competition_id))
@@ -36,7 +36,7 @@ async def delete_competition(competition_id: int, db: AsyncSession = Depends(get
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при удалении: {str(e)}")
 
 # Изменение определённого соревнования
-@router.put('/editCompetition')
+@router.put('/competition/{competition_id}')
 async def edit_competition(competition_id: int, competition: CompetitionBase, db: AsyncSession = Depends(get_db)):
     try:
         db_competition = await db.get(Competitions, competition_id)
@@ -51,7 +51,7 @@ async def edit_competition(competition_id: int, competition: CompetitionBase, db
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при обновлении: {str(e)}")
 
 # Выборка id первого соревнования в БД
-@router.get('/getFirstId')
+@router.get('/competition/first-id')
 async def get_first_id(db: AsyncSession = Depends(get_db)):
     try:
         query = select(Competitions.competition_id).order_by(Competitions.competition_id.asc())
@@ -64,7 +64,7 @@ async def get_first_id(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Выборка определённого соревнования
-@router.get('/getCompetition')
+@router.get('/competition/{competition_id}')
 async def get_competition(competition_id: int, db: AsyncSession = Depends(get_db)):
     try:
         query = select(Competitions).where(Competitions.competition_id == competition_id)
@@ -77,7 +77,7 @@ async def get_competition(competition_id: int, db: AsyncSession = Depends(get_db
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Выборка всех соревнований
-@router.get('/getAllCompetition')
+@router.get('/competitions')
 async def get_all_competition(db: AsyncSession = Depends(get_db)):
     try:
         query = select(Competitions)

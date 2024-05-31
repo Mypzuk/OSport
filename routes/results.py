@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update, and_, null, desc, func
+from sqlalchemy import select, delete, update, and_, desc, func
 
-from models.ObjectClass import ResultsBase, UserBase, CompetitionBase
+from models.ObjectClass import ResultsBase
 from models.models import Results, Users, Competitions
 from engine import get_db
 
 router = APIRouter()
 
 # Add a result to the database
-@router.post('/addResult')
+@router.post('/result/add')
 async def add_result(result: ResultsBase, db: AsyncSession = Depends(get_db)):
     try:
         user = await db.scalar(select(Users).where(Users.id == result.user_id))
@@ -29,7 +29,7 @@ async def add_result(result: ResultsBase, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при добавлении: {str(e)}")
 
 # Edit user result for a specific competition
-@router.put('/editResult')
+@router.put('/result/edit')
 async def edit_result(data: ResultsBase, db: AsyncSession = Depends(get_db)):
     try:
         query = update(Results).where(
@@ -42,7 +42,7 @@ async def edit_result(data: ResultsBase, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при изменении: {str(e)}")
 
 # Nullify the count of repetitions
-@router.post('/setNullResult')
+@router.post('/result/nullify')
 async def set_null_result(result_id: int, db: AsyncSession = Depends(get_db)):
     try:
         query = update(Results).where(Results.result_id == result_id).values(count=None)
@@ -53,7 +53,7 @@ async def set_null_result(result_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при обнулении: {str(e)}")
 
 # Edit the count of repetitions
-@router.post('/editCountResult')
+@router.post('/result/edit-сount')
 async def edit_count_result(result_id: int, new_count: int, db: AsyncSession = Depends(get_db)):
     try:
         query = update(Results).where(Results.result_id == result_id).values(count=new_count, status="✅")
@@ -64,7 +64,7 @@ async def edit_count_result(result_id: int, new_count: int, db: AsyncSession = D
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при обновлении: {str(e)}")
 
 # Delete a user result
-@router.delete('/deleteResult')
+@router.delete('/result/{result_id}')
 async def delete_result(result_id: int, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.scalar(select(Results).where(Results.result_id == result_id))
@@ -78,7 +78,7 @@ async def delete_result(result_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при удалении: {str(e)}")
 
 # Get all results for a specific user
-@router.get('/getUserAll')
+@router.get('/user/{user_id}/results')
 async def get_user_all(user_id: int, db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(select(Results).where(Results.user_id == user_id))
@@ -87,7 +87,7 @@ async def get_user_all(user_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Get user result for a specific competition
-@router.get('/getUserResult')
+@router.get('/user/{user_id}/competition/{competition_id}/result')
 async def get_user_result(user_id: int, competition_id: int, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.scalar(select(Results).where(and_(Results.user_id == user_id, Results.competition_id == competition_id)))
@@ -98,7 +98,7 @@ async def get_user_result(user_id: int, competition_id: int, db: AsyncSession = 
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Get all results from the database
-@router.get('/getAllResult')
+@router.get('/results')
 async def get_all_result(db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(select(Results))
@@ -107,7 +107,7 @@ async def get_all_result(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Get all results for a specific competition
-@router.get('/getCompetitionResult')
+@router.get('/competition/{competition_id}/results')
 async def get_competition_result(competition_id: int, db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(select(Results).where(Results.competition_id == competition_id))
@@ -116,7 +116,7 @@ async def get_competition_result(competition_id: int, db: AsyncSession = Depends
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Get user IDs for all participants in a specific competition
-@router.get('/getCompetitionMembers')
+@router.get('/competition/{competition_id}/participants')
 async def get_competition_members(competition_id: int, db: AsyncSession = Depends(get_db)):
     try:
         user_ids = await db.scalars(select(Results.user_id).where(Results.competition_id == competition_id))
@@ -125,7 +125,7 @@ async def get_competition_members(competition_id: int, db: AsyncSession = Depend
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Check the status of a user's result for a specific competition
-@router.get('/checkStatus')
+@router.get('/competition/{competition_id}/user/{user_id}/status')
 async def check_status(competition_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
     try:
         statuses = await db.scalars(select(Results.status).where(and_(Results.competition_id == competition_id, Results.user_id == user_id)))
@@ -136,7 +136,7 @@ async def check_status(competition_id: int, user_id: int, db: AsyncSession = Dep
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Filter competition results by count in descending order
-@router.get('/ratingUsers')
+@router.get('/competition/{competition_id}/rating')
 async def rating_users(competition_id: int, db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(
@@ -150,7 +150,7 @@ async def rating_users(competition_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
 
 # Global rating for all users based on the total count
-@router.get('/totalRatingUsers')
+@router.get('/rating')
 async def total_rating_users(db: AsyncSession = Depends(get_db)):
     try:
         total_counts = await db.execute(
