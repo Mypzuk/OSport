@@ -11,14 +11,11 @@ class UserBase(BaseModel):
     last_name: str
     birth_date: date
     sex: str
-    
-
 
 class CompetitionBase(BaseModel):
     title: str
     password: str
     video_instruction: str
-
 
 class ResultsBase(BaseModel):
     competition_id: int

@@ -5,6 +5,9 @@ from models.ObjectClass import UserBase, ResultsBase
 from models.models import Users, Results
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
@@ -12,32 +15,42 @@ router = APIRouter()
 @router.post('/user/registration')
 async def add_user(user: UserBase, db: AsyncSession = Depends(get_db)):
     try:
-        # Check if a user with the same id or email already exists
+        # Проверка, существует ли пользователь с таким же email или логином
         existing_user = await db.scalar(
             select(Users).where((Users.email == user.email) | (Users.login == user.login))
         )
         if existing_user:
             raise HTTPException(status_code=400, detail="Пользователь с таким логином или Email уже существует")
 
-        # Add the new user to the database
-        db_user = Users(**user.dict())
+        # Хеширование пароля перед сохранением в базу данных
+        hashed_password = pwd_context.hash(user.password)
+        user_dict = user.dict()
+        user_dict["password"] = hashed_password
+
+        # Добавление нового пользователя в базу данных
+        db_user = Users(**user_dict)
         db.add(db_user)
         await db.commit()
         await db.refresh(db_user)
-        return {"message": "Пользователь добавлен :3", "user": db_user}
+        
+        # Убираем пароль из ответа
+        user_response = db_user.__dict__.copy()
+        user_response.pop("password", None)
+        
+        return {"message": "Пользователь добавлен :3", "user": user_response}
     except HTTPException as e:
-        raise e  # Re-raise known HTTP exceptions
+        raise e  # Повторное выбрасывание известных HTTP исключений
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при добавлении пользователя: {str(e)}")
-
-
+    
+    
 @router.get('/user/login')
-async def add_user(login: str, password: str, db: AsyncSession = Depends(get_db)):
+async def login_user(login: str, password: str, db: AsyncSession = Depends(get_db)):
     try:
-        result = await db.execute(select(Users).where(Users.login == login, Users.password == password))
+        result = await db.execute(select(Users).where(Users.login == login))
         user = result.scalars().first()
-        if user is None:
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        if user is None or not pwd_context.verify(password, user.password):
+            raise HTTPException(status_code=404, detail="Неправильный логин или пароль")
         return {"message": "Вы успешно авторизовались"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при авторизации пользователя: {str(e)}")
