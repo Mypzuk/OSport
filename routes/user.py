@@ -56,7 +56,7 @@ async def login_user(login: str, password: str, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при авторизации пользователя: {str(e)}")
 
 @router.get('/user/{user_id}')
-async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Users).where(Users.id == user_id))
         user = result.scalars().first()
@@ -78,7 +78,7 @@ async def get_users(db: AsyncSession = Depends(get_db)):
 
 
 @router.put('/user/{user_id}/birthdate')
-async def update_birth_date(user_id: int, new_birth_date: date, db: AsyncSession = Depends(get_db)):
+async def update_birth_date(user_id: str, new_birth_date: date, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Users).where(Users.id == user_id))
         user = result.scalar()
@@ -93,7 +93,7 @@ async def update_birth_date(user_id: int, new_birth_date: date, db: AsyncSession
 
 
 @router.delete('/user/{user_id}')
-async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_user(user_id: str, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Users).where(Users.id == user_id))
         user = result.scalar()
@@ -109,7 +109,7 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/user/{user_id}/exists')
-async def check_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def check_user(user_id: str, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Users).where(Users.id == user_id))
         if result.first() is None:

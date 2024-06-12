@@ -3,7 +3,6 @@ from datetime import date
 
 
 class UserBase(BaseModel):
-    id: int
     login: str
     email: str
     password: str
@@ -16,10 +15,11 @@ class CompetitionBase(BaseModel):
     title: str
     password: str
     video_instruction: str
+    end_date: date
 
 class ResultsBase(BaseModel):
-    competition_id: int
-    user_id: int
+    competition_id: str
+    user_id: str
     video: str
-    count: int
+    count: str
     status: str

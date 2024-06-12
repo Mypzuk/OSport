@@ -86,3 +86,6 @@ async def get_all_competition(db: AsyncSession = Depends(get_db)):
         return {"competitions": competitions}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
+
+
+

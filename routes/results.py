@@ -43,7 +43,7 @@ async def edit_result(data: ResultsBase, db: AsyncSession = Depends(get_db)):
 
 # Nullify the count of repetitions
 @router.post('/result/nullify')
-async def set_null_result(result_id: int, db: AsyncSession = Depends(get_db)):
+async def set_null_result(result_id: str, db: AsyncSession = Depends(get_db)):
     try:
         query = update(Results).where(Results.result_id == result_id).values(count=None)
         await db.execute(query)
@@ -54,7 +54,7 @@ async def set_null_result(result_id: int, db: AsyncSession = Depends(get_db)):
 
 # Edit the count of repetitions
 @router.post('/result/edit-сount')
-async def edit_count_result(result_id: int, new_count: int, db: AsyncSession = Depends(get_db)):
+async def edit_count_result(result_id: str, new_count: str, db: AsyncSession = Depends(get_db)):
     try:
         query = update(Results).where(Results.result_id == result_id).values(count=new_count, status="✅")
         await db.execute(query)
@@ -65,7 +65,7 @@ async def edit_count_result(result_id: int, new_count: int, db: AsyncSession = D
 
 # Delete a user result
 @router.delete('/result/{result_id}')
-async def delete_result(result_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_result(result_id: str, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.scalar(select(Results).where(Results.result_id == result_id))
         if result is None:
@@ -79,7 +79,7 @@ async def delete_result(result_id: int, db: AsyncSession = Depends(get_db)):
 
 # Get all results for a specific user
 @router.get('/user/{user_id}/results')
-async def get_user_all(user_id: int, db: AsyncSession = Depends(get_db)):
+async def get_user_all(user_id: str, db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(select(Results).where(Results.user_id == user_id))
         return results.all()
@@ -88,7 +88,7 @@ async def get_user_all(user_id: int, db: AsyncSession = Depends(get_db)):
 
 # Get user result for a specific competition
 @router.get('/user/{user_id}/competition/{competition_id}/result')
-async def get_user_result(user_id: int, competition_id: int, db: AsyncSession = Depends(get_db)):
+async def get_user_result(user_id: str, competition_id: str, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.scalar(select(Results).where(and_(Results.user_id == user_id, Results.competition_id == competition_id)))
         if result is None:
@@ -108,7 +108,7 @@ async def get_all_result(db: AsyncSession = Depends(get_db)):
 
 # Get all results for a specific competition
 @router.get('/competition/{competition_id}/results')
-async def get_competition_result(competition_id: int, db: AsyncSession = Depends(get_db)):
+async def get_competition_result(competition_id: str, db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(select(Results).where(Results.competition_id == competition_id))
         return results.all()
@@ -117,7 +117,7 @@ async def get_competition_result(competition_id: int, db: AsyncSession = Depends
 
 # Get user IDs for all participants in a specific competition
 @router.get('/competition/{competition_id}/participants')
-async def get_competition_members(competition_id: int, db: AsyncSession = Depends(get_db)):
+async def get_competition_members(competition_id: str, db: AsyncSession = Depends(get_db)):
     try:
         user_ids = await db.scalars(select(Results.user_id).where(Results.competition_id == competition_id))
         return user_ids.all()
@@ -126,7 +126,7 @@ async def get_competition_members(competition_id: int, db: AsyncSession = Depend
 
 # Check the status of a user's result for a specific competition
 @router.get('/competition/{competition_id}/user/{user_id}/status')
-async def check_status(competition_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
+async def check_status(competition_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
     try:
         statuses = await db.scalars(select(Results.status).where(and_(Results.competition_id == competition_id, Results.user_id == user_id)))
         if statuses is None:
@@ -137,7 +137,7 @@ async def check_status(competition_id: int, user_id: int, db: AsyncSession = Dep
 
 # Filter competition results by count in descending order
 @router.get('/competition/{competition_id}/rating')
-async def rating_users(competition_id: int, db: AsyncSession = Depends(get_db)):
+async def rating_users(competition_id: str, db: AsyncSession = Depends(get_db)):
     try:
         results = await db.scalars(
             select(Results)
@@ -160,5 +160,59 @@ async def total_rating_users(db: AsyncSession = Depends(get_db)):
             .order_by(desc(func.sum(Results.count)))
         )
         return total_counts.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")
+
+
+@router.get('/user/{user_id}/competitions')
+async def competition_info(user_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        competitions = await db.execute(
+            select(
+                Results.competition_id,
+                Competitions.title,
+                Results.count
+            )
+            .join(Competitions, Results.competition_id == Competitions.competition_id)
+            .where(Results.user_id == user_id)
+            .group_by(Results.competition_id, Competitions.title)
+        )
+
+
+        competition_data = []
+        for row in competitions:
+            competition_id, title, user_count = row
+            
+            # Get total participants in the competition
+            members = await db.scalar(
+                select(func.count(Results.user_id)).where(Results.competition_id == competition_id)
+            )
+            
+            # Get user's place by count
+            subquery = select(
+            Results,
+            func.row_number().over(order_by=Results.count.desc()).label('row_number')).filter(Results.competition_id == competition_id).subquery()
+
+            # Основной запрос
+            query = select(subquery.c.row_number).filter(subquery.c.user_id == user_id)
+        
+            # Выполнение запроса
+            result = await db.execute(query)
+            user_place = result.scalar()
+            
+            # Get the competition end date
+            end_date = await db.scalar(
+                select(Competitions.end_date).where(Competitions.competition_id == competition_id)
+            )
+            
+            competition_data.append({
+                "title": title,
+                "count": user_count,
+                "members": members,
+                "place": user_place,
+                "end_date": end_date
+            })
+        
+        return competition_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Произошла ошибка при получении данных: {str(e)}")

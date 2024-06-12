@@ -39,6 +39,7 @@ class Competitions(Base):
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     password: Mapped[str] = mapped_column(Text, nullable=True)
     video_instruction: Mapped[str] = mapped_column(Text, nullable=False)
+    end_date: Mapped[Date] = mapped_column(Date, nullable=False)
 
 
 class Results(Base):
